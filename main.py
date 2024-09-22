@@ -53,9 +53,9 @@ def get_anime(animeID):
 def recommend_anime(profile: KMeansProfileInput):
     profile_array = np.array(profile.profile)
 
-    vectorizer = joblib.load('models/vectorizer.joblib')
-    scaler = joblib.load('models/anime_scaler_new.joblib')
-    kmeans_model = joblib.load('models/anime_recommender_new.joblib')
+    vectorizer = joblib.load('./models/vectorizer.joblib')
+    scaler = joblib.load('./models/anime_scaler_new.joblib')
+    kmeans_model = joblib.load('./models/anime_recommender_new.joblib')
     
     profile_array = vectorizer.transform(profile_array).todense()
     profile_array = (90-len(profile.seen_animes)) * 6.6 * np.sum(profile_array, axis=0)
