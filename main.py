@@ -1,7 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import uvicorn
 
 import joblib
 import numpy as np
@@ -94,5 +93,8 @@ def recommend_anime(profile: KMeansProfileInput):
 
     return {"recommendations": recommendations}
 
-if __name__ == '__main__':
-    uvicorn.run(app, host='0.0.0.0', port=9000)
+
+if not PRODUCTION:
+    if __name__ == '__main__':
+        import uvicorn
+        uvicorn.run(app, host='0.0.0.0', port=9000)
