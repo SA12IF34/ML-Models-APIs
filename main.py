@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+import uvicorn
 
 import joblib
 import numpy as np
@@ -8,6 +9,7 @@ import pandas as pd
 
 import requests
 
+PRODUCTION = True
 
 class KMeansProfileInput(BaseModel):
     profile: list[str]
@@ -21,7 +23,8 @@ app.add_middleware(
     allow_origins=[
         'https://saifchan.online',
         'https://cms.saifchan.online',
-        'https://ml-models.saifchan.online'
+        'https://ml-models.saifchan.online',
+        'http://127.0.0.1:8000'
     ],
     allow_credentials=True,
     allow_headers=['*'],
@@ -62,18 +65,34 @@ def recommend_anime(profile: KMeansProfileInput):
     profile_array = scaler.transform(np.array(profile_array))
 
     cluster_label = kmeans_model.predict(profile_array)[0]
-    anime_clusters = pd.read_csv('hf://datasets/SaifChan/AnimeDS/full_cluster.csv')
 
-
-    unseen_animes = anime_clusters[~anime_clusters['anime_id'].isin(profile.seen_animes)]
-    anime_df = pd.read_csv('hf://datasets/SaifChan/AnimeDS/anime.csv')
+    if PRODUCTION:
+        anime_clusters = pd.read_csv('hf://datasets/SaifChan/AnimeDS/full_cluster.csv')
+        anime_df = pd.read_csv('hf://datasets/SaifChan/AnimeDS/anime.csv')
+    else:
+        anime_clusters = pd.read_csv('data/full_cluster.csv')
+        anime_df = pd.read_csv('data/anime.csv')
     anime_df.dropna(inplace=True)
     anime_df = anime_df[~anime_df['genre'].str.contains('hentai', case=False, na=False)]
+
+    unseen_animes = anime_clusters[~anime_clusters['anime_id'].isin(profile.seen_animes)]
     unseen_animes  = unseen_animes[unseen_animes['anime_id'].isin(anime_df['anime_id'].values)]
 
-    anime_ids = unseen_animes[unseen_animes['cluster'] == cluster_label].sort_values('rating', ascending=False).head(16)['anime_id'].values
+    anime_ids = unseen_animes[unseen_animes['cluster'] == cluster_label].sort_values('rating', ascending=False).head(16)['anime_id'].values.tolist()
+    recommendations = []
 
-    return {"recommendations": anime_ids.tolist()}
+    for id_ in anime_ids:
+        response = requests.get(f'https://api.myanimelist.net/v2/anime/{id_}?fields=id,title,synopsis,main_picture,mean,genres', headers={
+        'Authorization': 'Bearer '+tokens['access_token']
+        })
+        if response.status_code == 200:
+            recommendations.append(response.json())
+        
+        else:
+            continue
 
-# if __name__ == '__main__':
-#     uvicorn.run(app, host='0.0.0.0', port=8000)
+
+    return {"recommendations": recommendations}
+
+if __name__ == '__main__':
+    uvicorn.run(app, host='0.0.0.0', port=9000)
