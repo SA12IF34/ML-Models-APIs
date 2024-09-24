@@ -64,7 +64,7 @@ else:
     anime_df = pd.read_csv('data/anime.csv')
 
 print(pd.__version__)
-print(anime_df.shape)
+print(anime_clusters.shape)
 anime_df = anime_df[~anime_df['genre'].str.contains('hentai', case=False, na=False)]
 anime_df.dropna(inplace=True)
 
@@ -77,7 +77,7 @@ def recommend_anime(profile: KMeansProfileInput):
     kmeans_model = joblib.load('./models/anime_recommender_new.joblib')
     
     profile_array = vectorizer.transform(profile_array).todense()
-    profile_array = (90-len(profile.seen_animes)) * 7 * np.sum(profile_array, axis=0)
+    profile_array = (90-len(profile.seen_animes)) * 6.6 * np.sum(profile_array, axis=0)
     profile_array = scaler.transform(np.array(profile_array))
 
     cluster_label = kmeans_model.predict(profile_array)[0]
