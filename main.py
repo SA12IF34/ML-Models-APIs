@@ -54,13 +54,13 @@ def get_anime(animeID):
 
 
 if PRODUCTION:
-    anime_clusters = load_dataset('csv', data_files='hf://datasets/SaifChan/AnimeDS/full_cluster.csv')['train'].to_pandas()
+    anime_clusters = load_dataset('csv', data_files='hf://datasets/SaifChan/AnimeDS/full_cluster_new.csv')['train'].to_pandas()
     anime_df = load_dataset('csv', data_files='hf://datasets/SaifChan/AnimeDS/anime.csv')['train'].to_pandas()
     
     # anime_clusters = pd.DataFrame(dataset1['train'])
     # anime_df = pd.DataFrame(dataset2['train'])
 else:
-    anime_clusters = pd.read_csv('data/full_cluster.csv')
+    anime_clusters = pd.read_csv('data/full_cluster_new.csv')
     anime_df = pd.read_csv('data/anime.csv')
 
 anime_df = anime_df[~anime_df['genre'].str.contains('hentai', case=False, na=False)]
@@ -85,7 +85,7 @@ def recommend_anime(profile: KMeansProfileInput):
     cluster_label = kmeans_model.predict(profile_array)[0]
     unseen_animes = anime_clusters[~anime_clusters['anime_id'].isin(profile.seen_animes)]
     unseen_animes  = unseen_animes[unseen_animes['anime_id'].isin(anime_df['anime_id'].values)]
-    anime_ids = unseen_animes[unseen_animes['cluster'] == cluster_label].sort_values('rating', ascending=False).head(16)['anime_id'].values.tolist()
+    anime_ids = unseen_animes[unseen_animes['cluster'] == cluster_label].sort_values(['rating', 'general_rating'], ascending=[False, False]).head(16)['anime_id'].values.tolist()
     # anime_ids = anime_ids.sample(16, random_state=42)['anime_id'].values.tolist()
     recommendations = []
 
