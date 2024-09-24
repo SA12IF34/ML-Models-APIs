@@ -56,13 +56,14 @@ def get_anime(animeID):
 if PRODUCTION:
     anime_clusters = load_dataset('csv', data_files='hf://datasets/SaifChan/AnimeDS/full_cluster.csv')['train'].to_pandas()
     anime_df = load_dataset('csv', data_files='hf://datasets/SaifChan/AnimeDS/anime.csv')['train'].to_pandas()
-    # anime_clusters = pd.read_csv(dataset1)
     
-    # anime_df = pd.read_csv(dataset2['train'])
+    # anime_clusters = pd.DataFrame(dataset1['train'])
+    # anime_df = pd.DataFrame(dataset2['train'])
 else:
     anime_clusters = pd.read_csv('data/full_cluster.csv')
     anime_df = pd.read_csv('data/anime.csv')
 
+print(anime_df.shape)
 anime_df = anime_df[~anime_df['genre'].str.contains('hentai', case=False, na=False)]
 anime_df.dropna(inplace=True)
 
