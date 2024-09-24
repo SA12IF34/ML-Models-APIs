@@ -80,7 +80,7 @@ def recommend_anime(profile: KMeansProfileInput):
     profile_array = scaler.transform(np.array(profile_array))
 
     cluster_label = kmeans_model.predict(profile_array)[0]
-    print(cluster_label)
+    print(profile.seen_animes)
     unseen_animes = anime_clusters[~anime_clusters['anime_id'].isin(profile.seen_animes)]
     unseen_animes  = unseen_animes[unseen_animes['anime_id'].isin(anime_df['anime_id'].values)]
     print(unseen_animes.shape)
