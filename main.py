@@ -54,10 +54,11 @@ def get_anime(animeID):
 
 
 if PRODUCTION:
-    dataset1 = load_dataset('csv', data_files='hf://datasets/SaifChan/AnimeDS/full_cluster.csv')
-    dataset2 = load_dataset('csv', data_files='hf://datasets/SaifChan/AnimeDS/anime.csv')
-    anime_clusters = pd.read_csv(dataset1['train'])
-    anime_df = pd.read_csv(dataset2['train'])
+    anime_clusters = load_dataset('csv', data_files='hf://datasets/SaifChan/AnimeDS/full_cluster.csv').to_pandas()
+    anime_df = load_dataset('csv', data_files='hf://datasets/SaifChan/AnimeDS/anime.csv').to_pandas()
+    # anime_clusters = pd.read_csv(dataset1)
+    
+    # anime_df = pd.read_csv(dataset2['train'])
 else:
     anime_clusters = pd.read_csv('data/full_cluster.csv')
     anime_df = pd.read_csv('data/anime.csv')
