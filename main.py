@@ -64,9 +64,10 @@ else:
     anime_df = pd.read_csv('data/anime.csv')
 
 print(pd.__version__)
-print(anime_clusters.shape)
+print(anime_df.shape)
 anime_df = anime_df[~anime_df['genre'].str.contains('hentai', case=False, na=False)]
 anime_df.dropna(inplace=True)
+print(anime_df.shape)
 
 @app.post('/recommend-anime/')
 def recommend_anime(profile: KMeansProfileInput):
@@ -84,11 +85,11 @@ def recommend_anime(profile: KMeansProfileInput):
     unseen_animes = anime_clusters[~anime_clusters['anime_id'].isin(profile.seen_animes)]
     unseen_animes  = unseen_animes[unseen_animes['anime_id'].isin(anime_df['anime_id'].values)]
     print(unseen_animes.shape)
-    anime_ids = unseen_animes[unseen_animes['cluster'] == cluster_label].sort_values('rating', ascending=False).head(16)['anime_id'].values.tolist()
+    anime_ids = unseen_animes[unseen_animes['cluster'] == cluster_label].sort_values('rating', ascending=False)['anime_id'].values.tolist()
     print(anime_ids)
     recommendations = []
 
-    for id_ in anime_ids:
+    for id_ in anime_ids[:16]:
         response = requests.get(f'https://api.myanimelist.net/v2/anime/{id_}?fields=id,title,synopsis,main_picture,mean,genres', headers={
         'Authorization': 'Bearer '+tokens['access_token']
         })
