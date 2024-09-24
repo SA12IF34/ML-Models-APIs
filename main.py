@@ -65,10 +65,10 @@ else:
 
 anime_df = anime_df[~anime_df['genre'].str.contains('hentai', case=False, na=False)]
 anime_df.dropna(inplace=True)
-# cluster_counts = anime_clusters.groupby(['anime_id'])['cluster'].nunique().reset_index()
-# cluster_counts.columns = ['anime_id', 'cluster_count']
-# anime_clusters = pd.merge(anime_clusters, cluster_counts, on='anime_id')
-# del cluster_counts
+cluster_counts = anime_clusters.groupby(['anime_id'])['cluster'].nunique().reset_index()
+cluster_counts.columns = ['anime_id', 'cluster_count']
+anime_clusters = pd.merge(anime_clusters, cluster_counts, on='anime_id')
+del cluster_counts
 
 @app.post('/recommend-anime/')
 def recommend_anime(profile: KMeansProfileInput):
@@ -85,7 +85,7 @@ def recommend_anime(profile: KMeansProfileInput):
     cluster_label = kmeans_model.predict(profile_array)[0]
     unseen_animes = anime_clusters[~anime_clusters['anime_id'].isin(profile.seen_animes)]
     unseen_animes  = unseen_animes[unseen_animes['anime_id'].isin(anime_df['anime_id'].values)]
-    anime_ids = unseen_animes[unseen_animes['cluster'] == cluster_label].sort_values(['rating', 'general_rating'], ascending=[False, False]).head(16)['anime_id'].values.tolist()
+    anime_ids = unseen_animes[unseen_animes['cluster'] == cluster_label].sort_values(['rating', 'general_rating', 'cluster_count'], ascending=[False, False, True]).head(16)['anime_id'].values.tolist()
     # anime_ids = anime_ids.sample(16, random_state=42)['anime_id'].values.tolist()
     recommendations = []
 
