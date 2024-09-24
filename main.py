@@ -85,7 +85,7 @@ def recommend_anime(profile: KMeansProfileInput):
     cluster_label = kmeans_model.predict(profile_array)[0]
     unseen_animes = anime_clusters[~anime_clusters['anime_id'].isin(profile.seen_animes)]
     unseen_animes  = unseen_animes[unseen_animes['anime_id'].isin(anime_df['anime_id'].values)]
-    anime_ids = unseen_animes[unseen_animes['cluster'] == cluster_label].sort_values(['rating', 'general_rating', 'cluster_count'], ascending=[False, False, True]).head(16)['anime_id'].values.tolist()
+    anime_ids = unseen_animes[unseen_animes['cluster'] == cluster_label].drop_duplicates(subset=['anime_id']).sort_values(['rating', 'general_rating', 'cluster_count'], ascending=[False, False, True]).head(16)['anime_id'].values.tolist()
     # anime_ids = anime_ids.sample(16, random_state=42)['anime_id'].values.tolist()
     recommendations = []
 
