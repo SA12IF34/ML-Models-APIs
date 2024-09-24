@@ -8,3 +8,4 @@ requests
 hypercorn
 fsspec
 huggingface_hub
+datasets

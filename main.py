@@ -5,6 +5,7 @@ from pydantic import BaseModel
 import joblib
 import numpy as np
 import pandas as pd
+from datasets import load_dataset
 
 import requests
 
@@ -22,7 +23,9 @@ app.add_middleware(
     allow_origins=[
         'https://saifchan.online',
         'https://cms.saifchan.online',
-        'https://ml-models.saifchan.online'
+        'https://ml-models.saifchan.online',
+        'http://127.0.0.1:8000',
+        'http://localhost:4173'
     ],
     allow_credentials=True,
     allow_headers=['*'],
@@ -50,6 +53,18 @@ def get_anime(animeID):
     raise HTTPException(500, 'Internal Server Error')
 
 
+if PRODUCTION:
+    dataset1 = load_dataset('csv', data_files='hf://datasets/SaifChan/AnimeDS/full_cluster.csv')
+    dataset2 = load_dataset('csv', data_files='hf://datasets/SaifChan/AnimeDS/anime.csv')
+    anime_clusters = pd.read_csv(dataset1['train'])
+    anime_df = pd.read_csv(dataset2['train'])
+else:
+    anime_clusters = pd.read_csv('data/full_cluster.csv')
+    anime_df = pd.read_csv('data/anime.csv')
+
+anime_df = anime_df[~anime_df['genre'].str.contains('hentai', case=False, na=False)]
+anime_df.dropna(inplace=True)
+
 @app.post('/recommend-anime/')
 def recommend_anime(profile: KMeansProfileInput):
     profile_array = np.array(profile.profile)
@@ -63,15 +78,6 @@ def recommend_anime(profile: KMeansProfileInput):
     profile_array = scaler.transform(np.array(profile_array))
 
     cluster_label = kmeans_model.predict(profile_array)[0]
-
-    if PRODUCTION:
-        anime_clusters = pd.read_csv('hf://datasets/SaifChan/AnimeDS/full_cluster.csv')
-        anime_df = pd.read_csv('hf://datasets/SaifChan/AnimeDS/anime.csv')
-    else:
-        anime_clusters = pd.read_csv('data/full_cluster.csv')
-        anime_df = pd.read_csv('data/anime.csv')
-    anime_df.dropna(inplace=True)
-    anime_df = anime_df[~anime_df['genre'].str.contains('hentai', case=False, na=False)]
 
     unseen_animes = anime_clusters[~anime_clusters['anime_id'].isin(profile.seen_animes)]
     unseen_animes  = unseen_animes[unseen_animes['anime_id'].isin(anime_df['anime_id'].values)]
