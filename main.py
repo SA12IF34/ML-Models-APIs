@@ -1,13 +1,19 @@
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-import joblib
 import numpy as np
 import pandas as pd
-from datasets import load_dataset
 
 import requests
+from utils.anime import load_data, load_models
+
+from utils.agent import agent_executor
+from langchain_core.messages import HumanMessage, AIMessage
+from gtts import gTTS
+import base64
+
+from utils.config import middleware_config
+
 
 PRODUCTION = True
 
@@ -15,22 +21,13 @@ class KMeansProfileInput(BaseModel):
     profile: list[str]
     seen_animes: list[int]
 
+class AgentInput(BaseModel):
+    message: str
+    history: list
+
 
 app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        'https://saifchan.online',
-        'https://cms.saifchan.online',
-        'https://ml-models.saifchan.online',
-        'http://127.0.0.1:8000',
-        'http://localhost:4173'
-    ],
-    allow_credentials=True,
-    allow_headers=['*'],
-    allow_methods=['*']
-)
+app.add_middleware(**middleware_config(PRODUCTION))
 
 tokens = {
     "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImp0aSI6IjZmNzhhNmZmMWU4OWFhMjcwZWVlN2Y4NWNmZjNkMzE1ZTZhNTMzNjYwY2JlM2YyNmFkMzkyYmI1NzM4MzA0M2I2OGE4NmRhMDc2OTA0OGEyIn0.eyJhdWQiOiJiYzdhYmIzOTNjZjRmYmIwZWVmYTMyNTI5ZDk0ZDg5MCIsImp0aSI6IjZmNzhhNmZmMWU4OWFhMjcwZWVlN2Y4NWNmZjNkMzE1ZTZhNTMzNjYwY2JlM2YyNmFkMzkyYmI1NzM4MzA0M2I2OGE4NmRhMDc2OTA0OGEyIiwiaWF0IjoxNzI2NjQyOTE2LCJuYmYiOjE3MjY2NDI5MTYsImV4cCI6MTcyOTIzNDkxNiwic3ViIjoiMTc2OTkwMjUiLCJzY29wZXMiOltdfQ.rvWDfBoL9nq07pyeicQx4UfU7JB-eGkOQESRWhmBI-cXY8OZ7IrD3Jxmv-vsK3NVBNMHD9baX4IjL6rpQSl9CxIjq0QrC31qXOL7o8qd5pwgIg0-IV3W0yHtOTEkrC0CpksChWDwABIXNrU7HdFF7gYp0MQ3B2rYzxL_5Mcq4HyXvahr1XtXWNJA9VjvhI1oZIvDAr63UECSsSmoYb88KQKuH7HzXrmAiCKeaKS4xVwYmJXBoc2MLwO7764-Axq7WDX-OV7zogO0uD73bj6g0jAKMayfUcC-2dBpCNDLNbBud8dSrE6wJHUowdpiBzQEBXeFdCwBR3Hr8gdaEv_VRA",
@@ -53,40 +50,22 @@ def get_anime(animeID):
     raise HTTPException(500, 'Internal Server Error')
 
 
-if PRODUCTION:
-    anime_clusters = load_dataset('csv', data_files='hf://datasets/SaifChan/AnimeDS/full_cluster_new.csv')['train'].to_pandas()
-    anime_df = load_dataset('csv', data_files='hf://datasets/SaifChan/AnimeDS/anime.csv')['train'].to_pandas()
-    
-    # anime_clusters = pd.DataFrame(dataset1['train'])
-    # anime_df = pd.DataFrame(dataset2['train'])
-else:
-    anime_clusters = pd.read_csv('data/full_cluster_new.csv')
-    anime_df = pd.read_csv('data/anime.csv')
-
-anime_df = anime_df[~anime_df['genre'].str.contains('hentai', case=False, na=False)]
-anime_df.dropna(inplace=True)
-cluster_counts = anime_clusters.groupby(['anime_id'])['cluster'].nunique().reset_index()
-cluster_counts.columns = ['anime_id', 'cluster_count']
-anime_clusters = pd.merge(anime_clusters, cluster_counts, on='anime_id')
-del cluster_counts
+anime_df, anime_clusters = load_data(PRODUCTION)
+vectorizer, scaler, recommender = load_models()
 
 @app.post('/recommend-anime/')
 def recommend_anime(profile: KMeansProfileInput):
-    profile_array = np.array(profile.profile)
 
-    vectorizer = joblib.load('./models/vectorizer.joblib')
-    scaler = joblib.load('./models/anime_scaler_new.joblib')
-    kmeans_model = joblib.load('./models/anime_recommender_new.joblib')
-    
-    profile_array = vectorizer.transform(profile_array).todense()
-    profile_array = (90-len(profile.seen_animes)) * 6.6 * np.sum(profile_array, axis=0)
+    profile_array = np.array(profile.profile)
+    profile_array = (90-len(profile.seen_animes)) * 8.5 * np.sum(vectorizer.transform(profile_array).todense(), axis=0)
     profile_array = scaler.transform(np.array(profile_array))
 
-    cluster_label = kmeans_model.predict(profile_array)[0]
+    cluster_label = recommender.predict(profile_array)[0]
+
     unseen_animes = anime_clusters[~anime_clusters['anime_id'].isin(profile.seen_animes)]
     unseen_animes  = unseen_animes[unseen_animes['anime_id'].isin(anime_df['anime_id'].values)]
-    anime_ids = unseen_animes[unseen_animes['cluster'] == cluster_label].drop_duplicates(subset=['anime_id']).sort_values(['rating', 'cluster_count'], ascending=[False, True]).head(16)['anime_id'].values.tolist()
-    # anime_ids = anime_ids.sample(16, random_state=42)['anime_id'].values.tolist()
+    anime_ids = unseen_animes[unseen_animes['cluster'] == cluster_label].sort_values(['rating'], ascending=[False]).head(20)['anime_id'].values.tolist()
+
     recommendations = []
 
     for id_ in anime_ids:
@@ -101,6 +80,43 @@ def recommend_anime(profile: KMeansProfileInput):
 
 
     return {"recommendations": recommendations}
+
+
+@app.post('/agent/')
+def agent(query: AgentInput):
+    history = query.history
+    message = query.message
+
+    history.append(HumanMessage(content=message))
+
+    output = agent_executor.invoke({'input': message, 'chat_history': history})['output']
+    history.append(AIMessage(content=output))
+    urls = []
+    if 'search-results' in output:
+        if '``' in output:
+            urls = output.split('``')[1].split(',')
+        else:
+            urls = output[:-1].split('search-results:')[1].split(',')
+
+    speech = gTTS(output)
+    stream = speech.stream()
+    b = b''.join(stream)
+    audio_data = base64.b64encode(b).decode('UTF-8')
+
+    if len(urls) > 0:
+        audio_data = ''
+        output = ''
+
+    response = {
+        'urls': urls,
+        'history': history,
+        'audio_data': audio_data,
+        'ai_message': output
+    }
+
+    return response
+
+
 
 
 if not PRODUCTION:
