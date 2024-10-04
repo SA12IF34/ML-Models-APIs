@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 import requests
-from utils.anime import load_data, load_models
+from utils.anime import load_data, load_models, get_recommendations
 
 from utils.agent import agent_executor
 from langchain_core.messages import HumanMessage, AIMessage
@@ -47,10 +47,10 @@ def get_anime(animeID):
 
         return anime
 
-    raise HTTPException(500, 'Internal Server Error')
+    # raise HTTPException(500, 'Internal Server Error')
 
 
-anime_df, anime_clusters = load_data(PRODUCTION)
+anime_clusters = load_data(PRODUCTION)
 vectorizer, scaler, recommender = load_models()
 
 @app.post('/recommend-anime/')
@@ -60,11 +60,9 @@ def recommend_anime(profile: KMeansProfileInput):
     profile_array = (90-len(profile.seen_animes)) * 8.5 * np.sum(vectorizer.transform(profile_array).todense(), axis=0)
     profile_array = scaler.transform(np.array(profile_array))
 
-    cluster_label = recommender.predict(profile_array)[0]
-
-    unseen_animes = anime_clusters[~anime_clusters['anime_id'].isin(profile.seen_animes)]
-    unseen_animes  = unseen_animes[unseen_animes['anime_id'].isin(anime_df['anime_id'].values)]
-    anime_ids = unseen_animes[unseen_animes['cluster'] == cluster_label].sort_values(['rating'], ascending=[False]).head(20)['anime_id'].values.tolist()
+    
+    recommendations_df = get_recommendations(anime_clusters, recommender, profile_array)
+    anime_ids = recommendations_df['anime_id'].values
 
     recommendations = []
 
