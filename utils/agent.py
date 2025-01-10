@@ -5,7 +5,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain.agents import create_tool_calling_agent, AgentExecutor
 from langchain.tools import tool
 
-os.environ['GOOGLE_API_KEY'] = 'AIzaSyCpQi-JDEYYUwRIYKrUUPJYHE7rJHwd38k'
+os.environ['GOOGLE_API_KEY'] = 'AIzaSyDTNv_WRwsdPr4LjoIht25VKsnRrws_nXU'
 os.environ['TAVILY_API_KEY'] = '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'
 
 tavily_search = TavilySearchResults(max_results=3)
