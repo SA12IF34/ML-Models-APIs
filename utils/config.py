@@ -9,14 +9,16 @@ def middleware_config(production:bool =False) -> dict:
         origins = [
             'https://saifchan.online',
             'https://cms.saifchan.online',
-            'https://ml-models.saifchan.online'
+            'https://ml-models.saifchan.online',
+            'https://api.ml.saifchan.online'
         ]
     else:
         origins = [
             'https://saifchan.online',
             'https://cms.saifchan.online',
             'https://ml-models.saifchan.online',
-            'http://127.0.0.1:8000',
+            'https://api.ml.saifchan.online',
+            'http://127.0.0.1:8000', 
             'http://localhost:4173',
             'http://localhost:5173'
         ]

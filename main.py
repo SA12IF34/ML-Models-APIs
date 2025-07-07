@@ -2,74 +2,102 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 import numpy as np
+from scipy.io import wavfile
 import pandas as pd
 
 import requests
-from utils.anime import load_data, load_models, get_recommendations
+from utils.anime import load_models
 
-from utils.agent import agent_executor
-from langchain_core.messages import HumanMessage, AIMessage
+from utils.agent import graph
 from gtts import gTTS
+from langdetect import detect
+import assemblyai as aai
 import base64
+import uuid
+import json
+import io
+from time import sleep
 
 from utils.config import middleware_config
+
+from models.source_code.moviesRecommender import load_recommender, MovieRecommenderSystem # MovieRecommenderSystem is needed for joblib to load the object properly
+
+aai.settings.api_key = 'ef7101c2978f4d7da86c90adfbed5a1b'
 
 
 PRODUCTION = False
 
-class KMeansProfileInput(BaseModel):
-    profile: list[str]
-    seen_animes: list[int]
+class AnimeProfile(BaseModel):
+    profile: list[int]
+
+class IMDBProfile(BaseModel):
+    seen: list[str]
+    ratings: list[float]
 
 class AgentInput(BaseModel):
-    message: str
-    history: list
+    data: str
+    rate: float | int
+    id: str | None = None
+
 
 
 app = FastAPI()
 app.add_middleware(**middleware_config(PRODUCTION))
 
-tokens = {
-    "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImp0aSI6IjBhMTY0MjNhMzFjOWJkOWE5M2QwYmVlMzI0ZmMyMTE0ZmMwZGU5MGE4MDk5NWE4NDA2NDM4NjhiN2YyNGFmMjJkYzhmMzgyMTE3OTdiNmE3In0.eyJhdWQiOiJiYzdhYmIzOTNjZjRmYmIwZWVmYTMyNTI5ZDk0ZDg5MCIsImp0aSI6IjBhMTY0MjNhMzFjOWJkOWE5M2QwYmVlMzI0ZmMyMTE0ZmMwZGU5MGE4MDk5NWE4NDA2NDM4NjhiN2YyNGFmMjJkYzhmMzgyMTE3OTdiNmE3IiwiaWF0IjoxNzM2MzY1NjQ4LCJuYmYiOjE3MzYzNjU2NDgsImV4cCI6MTczOTA0NDA0OCwic3ViIjoiMTc2OTkwMjUiLCJzY29wZXMiOltdfQ.Em_RzMf1DKZ-sf0ph_PSM8kJBaynbJEqDHaOvDdMdAc9d9yWuot6eWJd21XM9coYjMeeqeTOZ9ekx0NyC226Xg9tW71YLCrAIPCEFqFPG8SoN6PehukTX1nsdBe5hlTJ9umXLeh1R1Q7KfyUARIH6VYyjLpXb3xM_b82NX0Xpdh5NojrNYrnc22qQm1zpCApV1c20saEG1pupPjzjOLEfODfxx4k0xL_of6dKfiV2csnk6zQPoxbRhCi93KVwCVLXXf5kopb1NJDjvhLOyfhzAH-qkdpW1NfiJpBKT7LYgeJ6JE3RkvzmmqGSw_M0IczF9nc3F-eR86ASk1SFHJaMw",
-    "refresh_token": "def502005f51d7d66c4bf4fc5f4698968da9381017dac98d5240cfe20ed6bbb4b049279fb9fff3937c28b39137eed5ea748ae6a37aa9e1fd4a575d12fb6990ea4d7698438c26f382e7a6289115082c7a35b5465db332b7e1806c7a2f67e0fee843c4f2df61548637d7284bb6af1512d98ac9986ad2f12be48f17f0e182871e45adf80a825439dc54e49082e0ed687be305bb5c6890df7cf98895d87988443893a1a0144c130e642ae61bc88e250f03bd9da6be8a5702c8a5f813d179d2ed28f71119ee2b84e877364efecb8202f4b48ced1858696f5e2d348d6bd50318f02baad7e381fa9eebcd061ca0cd57f97bcc2ad47838b2fb368628666c12e5ede04f8475075b18b90e61bbb7ac5554a93b4f146c8b0436073b386405a1d38d8e54b51eac1acfd20598cdb4afe7bdaaff0b0532ab54cec0cafe840788a7537e25afc80cd60f8fb0cf6ea77d65ae3b70b9890dcccffee87bffce180a92854aa4cfdd32093a66229c96958e1c5466a5caff16521e2fd238e91b3bf58618647fe3230de2e0f6ad975d7700f7b830"
-}
+tokens = json.load(open('tokens.json'))
+
+def update_tokens():
+    global tokens
+
+    data = {
+        'client_id': 'd3c72ee839d8f61df73319c576188e48',
+        'client_secret': 'f20899b47ab1a30466db5804f57391bcc857690e8ec9c9b76ee7b7661ecb7c57',
+        'grant_type': 'refresh_token',
+        'refresh_token':tokens['refresh_token']
+    }
+
+    response = requests.post('https://myanimelist.net/v1/oauth2/token', data=data)
+
+    if response.status_code == 200:
+        with open('tokens.json', 'w') as file:
+            json.dump(response.json(), file)
+        tokens = response.json()
+    
+    else:
+        return -1
 
 @app.get('/get-anime/{animeID}/')
 def get_anime(animeID):
-    response = requests.get(f'https://api.myanimelist.net/v2/anime/{animeID}?fields=id,title,synopsis,main_picture,mean,genres', headers={
-        'Authorization': 'Bearer '+tokens['access_token']
-    })
+    response = requests.get(f'https://api.jikan.moe/v4/anime/{animeID}')
+    
     if response.status_code == 404:
         raise HTTPException(404, 'Not Found')
 
+    if response.status_code == 400:
+        raise HTTPException(400, 'Could not get anime data')
+    
+
     if response.status_code == 200:
         anime = response.json()
-
+        sleep(0.5)
         return anime
 
     raise HTTPException(500, 'Internal Server Error')
 
 
-anime_clusters = load_data(PRODUCTION)
-vectorizer, scaler, recommender = load_models()
+anime_recommender = load_models()
+movie_recommender = load_recommender()
 
 @app.post('/recommend-anime/')
-def recommend_anime(profile: KMeansProfileInput):
+def recommend_anime(profile: AnimeProfile):
 
-    profile_array = np.array(profile.profile)
-    profile_array = (90-len(profile.seen_animes)) * 8.5 * np.sum(vectorizer.transform(profile_array).todense(), axis=0)
-    profile_array = scaler.transform(np.array(profile_array))
-
-    
-    recommendations_df = get_recommendations(anime_clusters, recommender, profile_array)
-    anime_ids = recommendations_df['anime_id'].values
+    complete_profile = anime_recommender.make_profile(profile.profile)    
+    anime_ids = anime_recommender.recommend(complete_profile, profile.profile)
 
     recommendations = []
 
     for id_ in anime_ids:
-        response = requests.get(f'https://api.myanimelist.net/v2/anime/{id_}?fields=id,title,synopsis,main_picture,mean,genres', headers={
-        'Authorization': 'Bearer '+tokens['access_token']
-        })
+        response = requests.get(f'https://api.jikan.moe/v4/anime/{id_}')
         if response.status_code == 200:
             recommendations.append(response.json())
         
@@ -80,23 +108,96 @@ def recommend_anime(profile: KMeansProfileInput):
     return {"recommendations": recommendations}
 
 
+omdb_apikey = '7d250126'
+
+@app.get('/get-imdb/{imdbID}/')
+def get_imdb(imdbID):
+
+    response = requests.get(f'http://www.omdbapi.com/?i={imdbID}&apikey={omdb_apikey}')
+    
+    data = response.json()
+
+    if data and 'Response' in data and data['Response'] == 'True':
+        return data
+
+    
+    raise HTTPException(400, 'Could not get imdb material, imdbID may not be valid')
+
+
+@app.post('/recommend-imdb/')
+def recommend_imdb(profile: IMDBProfile):
+    complete_profile, _ = movie_recommender.make_profile(profile.seen, profile.ratings)
+
+    recommendation_data = movie_recommender.recommend_movies(complete_profile)
+    
+    recommendations = []
+    for imdbID in recommendation_data['itemId'].values():
+        response = requests.get(f'http://www.omdbapi.com/?i={imdbID}&apikey={omdb_apikey}')
+
+        data = response.json()
+        if data and 'Response' in data and data['Response'] == 'True':
+            recommendations.append(data)
+
+    return {"recommendations": recommendations}
+
+
 @app.post('/agent/')
 def agent(query: AgentInput):
-    history = query.history
-    message = query.message
+    data = np.array(json.loads(query.data), dtype=np.float32)
+    rate = int(query.rate)
+    if query.id is None:
+        id_ = str(uuid.uuid4())
+    else:
+        id_ = query.id
 
-    history.append(HumanMessage(content=message))
+    audio_int16 = (data * 32767).astype(np.int16)
+    audio_bytes = io.BytesIO()
+    wavfile.write(audio_bytes, rate, audio_int16)
+    audio_bytes.seek(0)
 
-    output = agent_executor.invoke({'input': message, 'chat_history': history})['output']
-    history.append(AIMessage(content=output))
+    try:
+        
+        config = aai.TranscriptionConfig(speech_model=aai.SpeechModel.slam_1, language_code='en_us')
+        transcript = aai.Transcriber(config=config).transcribe(audio_bytes)
+
+        if transcript.status == "error":
+            raise RuntimeError(f"Transcription failed: {transcript.error}")
+
+        message = transcript.text
+
+        if message == '' or message == ' ':
+            raise RuntimeError()
+
+    except RuntimeError:
+        return {'nothing': 'nothing'}
+    
+    output = graph.invoke({
+        'messages': [
+            {'role': 'system', 'content': '''
+                You are a helpful assistant, you can search the web.
+                You must follow the rules delimited by backticks.
+                The rules: ```
+                - Do not use emojis in your responses
+                - Respond with the same language the user used to talk to you
+                - Make your responses five sentences at most
+                - If you are asked to search the web, use web_earch tool, extract the urls from it's output, and format your response as JSON with the following key:
+                    urls: <the list of urls extracted from web_search tool output>
+                ```
+            '''},
+            {'role': 'human', 'content': message}
+        ]
+    }, config={'configurable': {'thread_id': id_}}, stream_mode='values')['messages'][-1].content
+
     urls = []
-    if 'search-results' in output:
-        if '``' in output:
-            urls = output.split('``')[1].split(',')
-        else:
-            urls = output[:-1].split('search-results:')[1].split(',')
+    if 'json' in output:
+        print(output)
+        content = output.split("```")[1].split("json\n")[1][:-1]
+        urls = json.loads(content)['urls']
+        print(urls)
 
-    speech = gTTS(output)
+    lang = detect(output)
+
+    speech = gTTS(text=output, lang=lang)
     stream = speech.stream()
     b = b''.join(stream)
     audio_data = base64.b64encode(b).decode('UTF-8')
@@ -107,9 +208,9 @@ def agent(query: AgentInput):
 
     response = {
         'urls': urls,
-        'history': history,
         'audio_data': audio_data,
-        'ai_message': output
+        'ai_message': output,
+        'id': id_
     }
 
     return response
