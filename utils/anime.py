@@ -3,45 +3,43 @@ import pandas as pd
 import joblib
 from datasets import load_dataset
 
+from models.source_code.animeRecommender import AnimeRecommender
 
 
-def load_data(production: bool =False) -> tuple:
-    '''
-    Loads data and processes it.
-    '''
-    if production:
-        anime_clusters = load_dataset('csv', data_files='hf://datasets/SaifChan/AnimeDS/mean_shift_anime_cluster_df.csv')['train'].to_pandas()
-        # anime_df = load_dataset('csv', data_files='hf://datasets/SaifChan/AnimeDS/anime.csv')['train'].to_pandas()
-
-    else:
-        anime_clusters = pd.read_csv('data/mean_shift_anime_cluster_df.csv')
-        # anime_df = pd.read_csv('data/anime.csv')
-
-    # anime_df = anime_df[~anime_df['genre'].str.contains('hentai', case=False, na=False)]
-    # anime_df.dropna(inplace=True)
-    # cluster_counts = anime_clusters.groupby(['anime_id'])['cluster'].nunique().reset_index()
-    # cluster_counts.columns = ['anime_id', 'cluster_count']
-    # anime_clusters = pd.merge(anime_clusters, cluster_counts, on='anime_id')
-    # del cluster_counts
-
-    return anime_clusters
+anime_features = ['action', 'adult-cast', 'adventure', 'anthropomorphic',
+       'avant-garde', 'award-winning', 'boys-love', 'cars', 'cgdct',
+       'comedy', 'dementia', 'demons', 'detective', 'drama', 'ecchi',
+       'erotica', 'fantasy', 'female', 'gag-humor', 'game', 'girls-love',
+       'gore', 'gourmet', 'harem', 'hentai', 'historical', 'horror',
+       'idols', 'isekai', 'iyashikei', 'josei', 'kids', 'love-polygon',
+       'magic', 'mahou-shoujo', 'male', 'martial-arts', 'mecha',
+       'military', 'music', 'mystery', 'mythology', 'organized-crime',
+       'otaku-culture', 'parody', 'performing-arts', 'pets', 'police',
+       'psychological', 'racing', 'reincarnation', 'reverse-harem',
+       'romance', 'samurai', 'school', 'sci-fi', 'seinen', 'shoujo',
+       'shoujo-ai', 'shounen', 'shounen-ai', 'slice-of-life', 'space',
+       'sports', 'strategy-game', 'super-power', 'supernatural',
+       'survival', 'suspense', 'team-sports', 'thriller', 'time-travel',
+       'urban-fantasy', 'vampire', 'video-game', 'workplace', 'yaoi',
+       'yuri']
 
 
-def load_models() -> tuple:
+def load_models() -> AnimeRecommender:
     '''
     Loads recommendation and preprocessing models.
     '''
 
-    vectorizer = joblib.load('models/vectorizer.joblib')
-    scaler = joblib.load('models/profiles_scaler.joblib')
-    kmeans_model = joblib.load('models/mean_shift.joblib')
+    print('Loading models...')
 
-    return vectorizer, scaler, kmeans_model
+    anime_recommender = AnimeRecommender(
+        'models/anime_recommendation/cluster_model.joblib',
+        'models/anime_recommendation/scaler.joblib',
+        'models/anime_recommendation/vectorizer.joblib',
+        'data/anime/anime_views_per_label.csv',
+        'data/anime/processed_anime.csv'
+    )
 
+    print('Models loaded successfully.')
 
-def get_recommendations(anime_cluster_df, model, profile):
-    label = model.predict(profile)[0]
-    recommendations = anime_cluster_df[anime_cluster_df['cluster'] == label].sort_values('rating', ascending=False).head(16)
+    return anime_recommender
 
-
-    return recommendations
