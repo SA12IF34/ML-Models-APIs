@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import sqlite3
 
 from typing import Annotated
@@ -15,8 +16,14 @@ from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_core.prompts import ChatPromptTemplate
 from langchain.tools import tool
 
-os.environ['DEEPSEEK_API_KEY'] = 'sk-f8c9ff52eea44cd8a00447c0878a3cde'
-os.environ['TAVILY_API_KEY'] = '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'
+import environ
+
+env = environ.Env()
+
+environ.Env.read_env(os.path.join(Path(__file__).resolve().parent, '.env'))
+
+os.environ['DEEPSEEK_API_KEY'] = env('DEEPSEEK_API_KEY')
+os.environ['TAVILY_API_KEY'] = env('TAVILY_API_KEY')
 
 tavily_search = TavilySearchResults(max_results=3)
 @tool
