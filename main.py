@@ -16,13 +16,22 @@ import base64
 import uuid
 import json
 import io
+import os
+from pathlib import Path
 from time import sleep
 
 from utils.config import middleware_config
 
 from models.source_code.moviesRecommender import load_recommender, MovieRecommenderSystem # MovieRecommenderSystem is needed for joblib to load the object properly
 
-aai.settings.api_key = 'ef7101c2978f4d7da86c90adfbed5a1b'
+
+import environ
+
+env = environ.Env()
+
+environ.Env.read_env(os.path.join(Path(__file__).resolve(), '.env'))
+
+aai.settings.api_key = env('ASSEMBLYAI_API_KEY')
 
 
 PRODUCTION = False
@@ -108,7 +117,7 @@ def recommend_anime(profile: AnimeProfile):
     return {"recommendations": recommendations}
 
 
-omdb_apikey = '7d250126'
+omdb_apikey = env('OMDB_API_KEY')
 
 @app.get('/get-imdb/{imdbID}/')
 def get_imdb(imdbID):
