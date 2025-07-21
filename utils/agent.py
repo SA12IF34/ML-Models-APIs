@@ -19,8 +19,8 @@ from langchain.tools import tool
 import environ
 
 env = environ.Env()
-
-environ.Env.read_env(os.path.join(Path(__file__).resolve(), '.env'))
+print(Path(__file__).resolve().parent)
+environ.Env.read_env(os.path.join(Path(__file__).resolve().parent.parent, '.env'))
 
 os.environ['DEEPSEEK_API_KEY'] = env('DEEPSEEK_API_KEY')
 os.environ['TAVILY_API_KEY'] = env('TAVILY_API_KEY')
