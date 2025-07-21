@@ -6,6 +6,9 @@ checkpoint.sqlite3-wal
 
 .env
 
+tokens.json
+vercel.json
+
 data/anime
 data/games
 
