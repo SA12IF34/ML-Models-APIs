@@ -85,7 +85,9 @@ def get_anime(animeID):
     if response.status_code == 400:
         raise HTTPException(400, 'Could not get anime data')
     
-
+    print(response)
+    print(response.status_code)
+    print(response.json())
     if response.status_code == 200:
         anime = response.json()
         sleep(0.5)
