@@ -175,7 +175,7 @@ def agent(query: AgentInput):
 
     try:
         
-        config = aai.TranscriptionConfig(speech_model=aai.SpeechModel.slam_1, language_code='en_us')
+        config = aai.TranscriptionConfig(speech_models=["universal-3-pro"], language_code='en_us')
         transcript = aai.Transcriber(config=config).transcribe(audio_bytes)
 
         if transcript.status == "error":
@@ -197,7 +197,7 @@ def agent(query: AgentInput):
                 The rules: ```
                 - Do not use emojis in your responses
                 - Respond with the same language the user used to talk to you
-                - Make your responses five sentences at most
+                - Make your responses three sentences at most
                 - If you are asked to search the web, use web_earch tool, extract the urls from it's output, and format your response as JSON with the following key:
                     urls: <the list of urls extracted from web_search tool output>
                 ```

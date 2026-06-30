@@ -12,6 +12,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.checkpoint.sqlite import SqliteSaver
 
 from langchain_deepseek.chat_models import ChatDeepSeek
+from langchain_openais import ChatOpenAI
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_core.prompts import ChatPromptTemplate
 from langchain.tools import tool
@@ -22,8 +23,9 @@ env = environ.Env()
 print(Path(__file__).resolve().parent)
 environ.Env.read_env(os.path.join(Path(__file__).resolve().parent.parent, '.env'))
 
-os.environ['DEEPSEEK_API_KEY'] = env('DEEPSEEK_API_KEY')
+os.environ['OPENAI_API_KEY'] = env('OPENAI_API_KEY')
 os.environ['TAVILY_API_KEY'] = env('TAVILY_API_KEY')
+
 
 tavily_search = TavilySearchResults(max_results=3)
 @tool
@@ -44,9 +46,9 @@ class State(TypedDict):
 
 graph_builder = StateGraph(State)
 
-llm = ChatDeepSeek(
-    model='deepseek-chat',
-    temperature=1.5,
+llm = ChatOpenAI(
+    model='gpt-4o-mini',
+    temperature=0.3,
     max_retries=3
 )
 llm = llm.bind_tools(tools)
