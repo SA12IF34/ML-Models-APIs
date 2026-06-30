@@ -175,7 +175,7 @@ def agent(query: AgentInput):
 
     try:
         
-        config = aai.TranscriptionConfig(speech_models=["universal-3-pro"], language_code='en_us')
+        config = aai.TranscriptionConfig(speech_model=aai.SpeechModel.universal, language_code='en_us')
         transcript = aai.Transcriber(config=config).transcribe(audio_bytes)
 
         if transcript.status == "error":
