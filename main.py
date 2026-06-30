@@ -23,7 +23,8 @@ from time import sleep
 from utils.config import middleware_config
 
 from models.source_code.moviesRecommender import load_recommender, MovieRecommenderSystem # MovieRecommenderSystem is needed for joblib to load the object properly
-
+import __main__
+__main__.MovieRecommenderSystem = MovieRecommenderSystem
 
 import environ
 
