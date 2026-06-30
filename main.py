@@ -95,7 +95,7 @@ def get_anime(animeID):
 
 
 anime_recommender = load_models()
-movie_recommender = load_recommender()
+# movie_recommender = load_recommender()
 
 @app.post('/recommend-anime/')
 def recommend_anime(profile: AnimeProfile):
@@ -133,21 +133,21 @@ def get_imdb(imdbID):
     raise HTTPException(400, 'Could not get imdb material, imdbID may not be valid')
 
 
-@app.post('/recommend-imdb/')
-def recommend_imdb(profile: IMDBProfile):
-    complete_profile, _ = movie_recommender.make_profile(profile.seen, profile.ratings)
+# @app.post('/recommend-imdb/')
+# def recommend_imdb(profile: IMDBProfile):
+#     complete_profile, _ = movie_recommender.make_profile(profile.seen, profile.ratings)
 
-    recommendation_data = movie_recommender.recommend_movies(complete_profile)
+#     recommendation_data = movie_recommender.recommend_movies(complete_profile)
     
-    recommendations = []
-    for imdbID in recommendation_data['itemId'].values():
-        response = requests.get(f'http://www.omdbapi.com/?i={imdbID}&apikey={omdb_apikey}')
+#     recommendations = []
+#     for imdbID in recommendation_data['itemId'].values():
+#         response = requests.get(f'http://www.omdbapi.com/?i={imdbID}&apikey={omdb_apikey}')
 
-        data = response.json()
-        if data and 'Response' in data and data['Response'] == 'True':
-            recommendations.append(data)
+#         data = response.json()
+#         if data and 'Response' in data and data['Response'] == 'True':
+#             recommendations.append(data)
 
-    return {"recommendations": recommendations}
+#     return {"recommendations": recommendations}
 
 
 @app.post('/agent/')
