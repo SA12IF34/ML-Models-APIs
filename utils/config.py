@@ -7,17 +7,17 @@ def middleware_config(production:bool =False) -> dict:
 
     if production:
         origins = [
-            'https://saifchan.online',
-            'https://cms.saifchan.online',
-            'https://ml-models.saifchan.online',
-            'https://api.ml.saifchan.online'
+            'https://saifchan.site',
+            'https://cms.saifchan.site',
+            'https://ml-models.saifchan.site',
+            'https://api.ml.saifchan.site'
         ]
     else:
         origins = [
-            'https://saifchan.online',
-            'https://cms.saifchan.online',
-            'https://ml-models.saifchan.online',
-            'https://api.ml.saifchan.online',
+            'https://saifchan.site',
+            'https://cms.saifchan.site',
+            'https://ml-models.saifchan.site',
+            'https://api.ml.saifchan.site',
             'http://127.0.0.1:8000', 
             'http://localhost:4173',
             'http://localhost:5173'
