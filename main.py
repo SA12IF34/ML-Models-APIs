@@ -114,6 +114,7 @@ def recommend_anime(profile: AnimeProfile):
     recommendations = []
 
     for id_ in anime_ids:
+        sleep(0.6)
         response = requests.get(f'https://api.jikan.moe/v4/anime/{id_}')
         if response.status_code == 200:
             recommendations.append(response.json())
