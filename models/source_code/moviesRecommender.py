@@ -162,9 +162,9 @@ class MovieRecommenderSystem:
     return recommendations_df.to_dict()
 
 def load_recommender():
-  current_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-  model_path = os.path.join(current_dir, 'models', 'movie_recommendation', 'recommender_model.joblib')
-  movie_recommender = joblib.load(model_path)
+  # current_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+  # model_path = os.path.join(current_dir, 'models', 'movie_recommendation', 'recommender_model.joblib')
+  movie_recommender = joblib.load('models/movie_recommendation/recommender_model.joblib')
 
   return movie_recommender
 

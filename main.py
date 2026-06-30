@@ -77,6 +77,7 @@ def update_tokens():
 
 @app.get('/get-anime/{animeID}/')
 def get_anime(animeID):
+    sleep(0.7)
     response = requests.get(f'https://api.jikan.moe/v4/anime/{animeID}')
     
     if response.status_code == 404:
@@ -88,16 +89,20 @@ def get_anime(animeID):
     print(response)
     print(response.status_code)
     print(response.json())
+
+    if response.status_code == 429:
+        return HTTPException(429, 'Rate Limited')
+
     if response.status_code == 200:
         anime = response.json()
-        sleep(0.5)
+        
         return anime
 
     raise HTTPException(500, 'Internal Server Error')
 
 
 anime_recommender = load_models()
-# movie_recommender = load_recommender()
+movie_recommender = load_recommender()
 
 @app.post('/recommend-anime/')
 def recommend_anime(profile: AnimeProfile):
@@ -135,21 +140,21 @@ def get_imdb(imdbID):
     raise HTTPException(400, 'Could not get imdb material, imdbID may not be valid')
 
 
-# @app.post('/recommend-imdb/')
-# def recommend_imdb(profile: IMDBProfile):
-#     complete_profile, _ = movie_recommender.make_profile(profile.seen, profile.ratings)
+@app.post('/recommend-imdb/')
+def recommend_imdb(profile: IMDBProfile):
+    complete_profile, _ = movie_recommender.make_profile(profile.seen, profile.ratings)
 
-#     recommendation_data = movie_recommender.recommend_movies(complete_profile)
+    recommendation_data = movie_recommender.recommend_movies(complete_profile)
     
-#     recommendations = []
-#     for imdbID in recommendation_data['itemId'].values():
-#         response = requests.get(f'http://www.omdbapi.com/?i={imdbID}&apikey={omdb_apikey}')
+    recommendations = []
+    for imdbID in recommendation_data['itemId'].values():
+        response = requests.get(f'http://www.omdbapi.com/?i={imdbID}&apikey={omdb_apikey}')
 
-#         data = response.json()
-#         if data and 'Response' in data and data['Response'] == 'True':
-#             recommendations.append(data)
+        data = response.json()
+        if data and 'Response' in data and data['Response'] == 'True':
+            recommendations.append(data)
 
-#     return {"recommendations": recommendations}
+    return {"recommendations": recommendations}
 
 
 @app.post('/agent/')
