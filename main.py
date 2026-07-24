@@ -6,15 +6,11 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 import requests
-from utils.anime import load_models
+from utils.anime import load_models, API_QUERY
 
 import os
-from pathlib import Path
-import assemblyai as aai
 import json
 import os
-from pathlib import Path
-from time import sleep
 
 from utils.config import middleware_config
 
@@ -23,12 +19,9 @@ import __main__
 __main__.MovieRecommenderSystem = MovieRecommenderSystem
 
 
-
-aai.settings.api_key = os.getenv('ASSEMBLYAI_API_KEY')
-
-
 PRODUCTION = False
 
+# Schemas
 class AnimeProfile(BaseModel):
     profile: list[int]
 
@@ -41,42 +34,36 @@ class AgentInput(BaseModel):
     rate: float | int
     id: str | None = None
 
+class AnimeID(BaseModel):
+    id_list: list[int]
 
+anime_recommender = None
+movie_recommender = None
 
-app = FastAPI()
+def lifespan(app: FastAPI):
+    global anime_recommender, movie_recommender
+    anime_recommender = load_models()
+    movie_recommender = load_recommender()
+    yield
+
+app = FastAPI(lifespan=lifespan)
 app.add_middleware(**middleware_config(PRODUCTION))
 
 tokens = json.load(open('tokens.json'))
 
 
 
-@app.get('/get-anime/{animeID}/')
-def get_anime(animeID):
-    response = requests.get(
-        f'https://api.myanimelist.net/v2/anime/{animeID}?fields=id,title,main_picture,,,synopsis,mean,rank,media_type,status,genres', headers={
-            'Authorization': f"Bearer {tokens['access_token']}"
-        })
+@app.post('/get-anime')
+def get_anime(anime: AnimeID):
     
-    if response.status_code == 404:
-        raise HTTPException(404, 'Not Found')
+    variables = {
+        'idMal': anime.id_list
+    }
+    api_link = 'https://graphql.anilist.co'
+    response = requests.post(api_link, json={'query': API_QUERY, 'variables': variables})
+    print(response.status_code)
+    return response.json()
 
-    if response.status_code == 400:
-        raise HTTPException(400, 'Could not get anime data')
-
-
-    if response.status_code == 429:
-        return HTTPException(429, 'Rate Limited')
-
-    if response.status_code == 200:
-        anime = response.json()
-        
-        return anime
-
-    raise HTTPException(500, 'Internal Server Error')
-
-
-anime_recommender = load_models()
-movie_recommender = load_recommender()
 
 @app.post('/recommend-anime/')
 def recommend_anime(profile: AnimeProfile):
@@ -85,22 +72,14 @@ def recommend_anime(profile: AnimeProfile):
     anime_ids = anime_recommender.recommend(complete_profile, profile.profile)
 
     recommendations = []
-
-    for id_ in anime_ids:
-        sleep(0.6)
-        response = requests.get(f'https://api.jikan.moe/v4/anime/{id_}')
-        if response.status_code == 200:
-            recommendations.append(response.json())
-        
-        else:
-            continue
+    response = requests.post('https://graphql.anilist.co', json={'query': API_QUERY, 'variables': {'idMal': anime_ids}})
+    recommendations.extend(response.json()['data']['Page']['media'])
 
 
     return {"recommendations": recommendations}
 
 
-omdb_apikey = env('OMDB_API_KEY')
-
+omdb_apikey = os.getenv('OMDB_API_KEY')
 @app.get('/get-imdb/{imdbID}/')
 def get_imdb(imdbID):
 
@@ -130,8 +109,6 @@ def recommend_imdb(profile: IMDBProfile):
             recommendations.append(data)
 
     return {"recommendations": recommendations}
-
-
 
 
 if not PRODUCTION:
