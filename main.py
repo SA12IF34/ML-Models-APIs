@@ -8,6 +8,8 @@ import pandas as pd
 import requests
 from utils.anime import load_models
 
+import os
+from pathlib import Path
 from utils.agent import graph
 from gtts import gTTS
 from langdetect import detect
