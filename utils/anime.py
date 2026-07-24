@@ -1,7 +1,3 @@
-import numpy as np
-import pandas as pd
-import joblib
-from datasets import load_dataset
 
 from models.source_code.animeRecommender import AnimeRecommender
 
@@ -43,3 +39,23 @@ def load_models() -> AnimeRecommender:
 
     return anime_recommender
 
+
+API_QUERY = '''
+    query ($idMal: [Int]) {
+        Page  {
+            media (idMal_in: $idMal, type: ANIME) {
+                id
+                idMal
+                title {
+                    romaji
+                }
+                description(asHtml: false)
+                meanScore
+                genres
+                coverImage {
+                    large
+                }                
+            }
+        }
+    }
+    '''
