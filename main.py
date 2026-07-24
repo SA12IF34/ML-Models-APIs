@@ -49,9 +49,6 @@ def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 app.add_middleware(**middleware_config(PRODUCTION))
 
-tokens = json.load(open('tokens.json'))
-
-
 
 @app.post('/get-anime')
 def get_anime(anime: AnimeID):
